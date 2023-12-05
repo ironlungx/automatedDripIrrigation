@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="shortcut icon" type="image/png" href="https://img.icons8.com/color/48/clock--v1.png">
+    <title>ESP32 Alarm Configuration</title>
+</head>
+
+<body>
+    <center>
+        <h1>ESP32 Alarm Configuration</h1>
+        <h3 id="currentTimeLabel">Current Time: </h3>
+
+        <form action="/submit" method="post">
+            <label for="hours">Hours:</label>
+            <input type="number" id="hours" name="hours" min="0" max="23" required style="width: 50px;">
+
+            <label for="mins">Minutes:</label>
+            <input type="number" id="mins" name="mins" min="0" max="59" required style="width: 50px;">
+
+            <label for="seconds">Seconds:</label>
+            <input type="number" id="seconds" name="seconds" min="0" max="59" required style="width: 50px;">
+            <br>
+            <button type="submit">Set Alarm</button>
+        </form>
+        <!-- <img width="250" height="250" src="" alt="clock--v3"/> -->
+        <!-- Add the "Set Next Minute Alarm" button -->
+        <button onclick="setNextMinuteAlarm()">Set Next Minute Alarm</button>
+
+        <h2>Current Alarms</h2>
+        <ul id="alarmsList">
+            <!-- Alarms will be dynamically added here -->
+        </ul>
+    </center>
+
+    <script>
+        // Function to remove an alarm
+        function removeAlarm(alarmId) {
+            fetch('/remove_alarm', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `alarmId=${alarmId}`,
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Remove the alarm from the list
+                        const listItem = document.getElementById(alarmId);
+                        listItem.remove();
+                    } else {
+                        console.error('Error removing alarm:', data.error);
+                    }
+                })
+                .catch(error => console.error('Error removing alarm:', error));
+        }
+
+        // Function to fetch and update the current time
+        function fetchCurrentTime() {
+            fetch('/time')
+                .then(response => response.text())
+                .then(time => {
+                    const currentTimeLabel = document.getElementById('currentTimeLabel');
+                    currentTimeLabel.textContent = `Current Time: ${time}`;
+                })
+                .catch(error => console.error('Error fetching time:', error));
+        }
+
+        function setNextMinuteAlarm() {
+            const now = new Date();
+            const nextMinute = new Date(now);
+            nextMinute.setMinutes(now.getMinutes() + 1);
+
+            const hoursInput = document.getElementById('hours');
+            const minsInput = document.getElementById('mins');
+            const secondsInput = document.getElementById('seconds');
+
+            // Set the input fields with the next minute values
+            hoursInput.value = nextMinute.getHours();
+            minsInput.value = nextMinute.getMinutes();
+            secondsInput.value = 0; // You can set seconds to 0 or any other default value
+
+            // Call the function to submit the form (you can also trigger form submission programmatically)
+            submitForm();
+        }
+
+        // Fetch alarms initially
+        fetch('/alarms')
+            .then(response => response.json())
+            .then(alarms => {
+                const alarmsList = document.getElementById('alarmsList');
+                alarmsList.innerHTML = '';
+
+                alarms.forEach(alarm => {
+                    const alarmId = `alarm_${Date.now()}`;
+                    const listItem = document.createElement('li');
+                    listItem.setAttribute('id', alarmId);
+                    listItem.textContent = `${alarm.tm_hour}:${alarm.tm_min}:${alarm.tm_sec}`;
+
+                    // Add a "Remove" button
+                    const removeButton = document.createElement('button');
+                    removeButton.textContent = 'Remove';
+                    removeButton.addEventListener('click', () => removeAlarm(alarmId));
+
+                    listItem.appendChild(removeButton);
+                    alarmsList.appendChild(listItem);
+                });
+            })
+            .catch(error => console.error('Error fetching alarms:', error));
+
+        // Function to submit the form programmatically
+        function submitForm() {
+            document.querySelector('form').submit();
+        }
+
+        // Fetch and update the current time every 5 seconds
+        setInterval(fetchCurrentTime, 1000);
+    </script>
+</body>
+
+</html>
